@@ -1,14 +1,24 @@
 from app.embeddings.embedder import embed_query
-from app.vector_store.chroma_store import search_chunks
+from app.vector_store.chroma_store import search_chunks_with_section_boost
 
 
-def retrieve_relevant_chunks(query: str, top_k: int = 5):
+def retrieve_relevant_chunks(query: str, top_k: int = 5, use_section_boost: bool = True):
     """
     Retrieve relevant chunks and their page numbers.
+    
+    Args:
+        query: The search query
+        top_k: Number of chunks to retrieve
+        use_section_boost: Whether to boost abstract/intro sections
     """
-
     query_embedding = embed_query(query)
-    results = search_chunks(query_embedding, top_k=top_k)
+    
+    if use_section_boost:
+        results = search_chunks_with_section_boost(query_embedding, top_k=top_k)
+    else:
+        # Fallback to basic search if needed
+        from app.vector_store.chroma_store import search_chunks
+        results = search_chunks(query_embedding, top_k=top_k)
 
     documents = results["documents"][0]
     metadatas = results["metadatas"][0]
@@ -16,10 +26,15 @@ def retrieve_relevant_chunks(query: str, top_k: int = 5):
     chunks = []
 
     for doc, meta in zip(documents, metadatas):
-        page = meta["page"] if meta is not None and "page" in meta else "Unknown"
+        page = meta.get("page", "Unknown") if meta else "Unknown"
+        section = meta.get("section", "body") if meta else "body"
+        position = meta.get("position", "body") if meta else "body"
+        
         chunks.append({
             "text": doc,
-            "page": page
+            "page": page,
+            "section": section,
+            "position": position
         })
 
     return chunks

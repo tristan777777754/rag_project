@@ -1,0 +1,82 @@
+[
+  {
+    "id": "q1",
+    "question": "What does this paper introduce?",
+    "expected_topic": "Feynman-Kac approach to pricing path-dependent interest rate derivatives using Finance-Informed Neural Networks (FINNs)",
+    "expected_section": "abstract",
+    "expected_page": 1,
+    "notes": "Should retrieve the abstract or introduction describing the FINN framework for derivatives pricing"
+  },
+  {
+    "id": "q2",
+    "question": "What problem does this paper solve?",
+    "expected_topic": "Heath-Jarrow-Morton model is infinite-dimensional and computationally prohibitive with Monte Carlo",
+    "expected_section": "abstract, introduction",
+    "expected_page": 1,
+    "notes": "Should mention HJM framework computational challenges and Monte Carlo limitations"
+  },
+  {
+    "id": "q3",
+    "question": "Summarize the abstract of this paper.",
+    "expected_topic": "No-arbitrage Monte Carlo-free derivatives pricing using FINNs to solve PDEs",
+    "expected_section": "abstract",
+    "expected_page": 1,
+    "notes": "MUST retrieve page 1 abstract. This tests if the retriever captures the most important section."
+  },
+  {
+    "id": "q4",
+    "question": "What role does the PDE play in this paper?",
+    "expected_topic": "PDE converts stochastic pricing problem to deterministic form for FINNs to solve",
+    "expected_section": "abstract, introduction",
+    "expected_page": 1,
+    "notes": "Should explain how PDE makes the problem tractable and how FINNs minimize PDE violations"
+  },
+  {
+    "id": "q5",
+    "question": "How does the FINN method compare with Monte Carlo?",
+    "expected_topic": "FINNs achieve 300,000 to 4.5 million times speedup over Monte Carlo",
+    "expected_section": "abstract, results",
+    "expected_page": 1,
+    "notes": "Should mention speedup numbers and Greeks computation advantages"
+  },
+  {
+    "id": "q6",
+    "question": "What are the major Greeks mentioned and how are they computed?",
+    "expected_topic": "Theta and curve deltas, computed automatically at zero marginal cost via automatic differentiation",
+    "expected_section": "abstract",
+    "expected_page": 1,
+    "notes": "Should retrieve abstract content about Greeks"
+  },
+  {
+    "id": "q7",
+    "question": "What is the HJM framework?",
+    "expected_topic": "Heath-Jarrow-Morton framework for arbitrage-free pricing of interest rate derivatives",
+    "expected_section": "introduction",
+    "expected_page": 2,
+    "notes": "Should retrieve introduction explaining HJM framework"
+  },
+  {
+    "id": "q8",
+    "question": "What accuracy does the FINN method achieve?",
+    "expected_topic": "0.04 to 0.07 cents per dollar of contract value",
+    "expected_section": "abstract, results",
+    "expected_page": 1,
+    "notes": "Should retrieve specific accuracy metrics from abstract"
+  },
+  {
+    "id": "q9",
+    "question": "What other derivatives can this framework generalize to?",
+    "expected_topic": "Caps, swaptions, callable bonds",
+    "expected_section": "abstract",
+    "expected_page": 1,
+    "notes": "Should retrieve list of generalizable derivatives from abstract"
+  },
+  {
+    "id": "q10",
+    "question": "What is automatic differentiation used for in this paper?",
+    "expected_topic": "Computing exact derivatives needed to evaluate PDE terms",
+    "expected_section": "abstract, methodology",
+    "expected_page": 1,
+    "notes": "Should explain how autodiff computes PDE derivatives"
+  }
+]

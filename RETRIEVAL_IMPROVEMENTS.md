@@ -10,16 +10,14 @@ PDF → Text Extraction → Semantic Chunking → Embeddings → ChromaDB → Se
 
 ## Results Summary
 
-### Iteration 1: Semantic Chunking with Section Detection ✅
-- **Score Improvement**: 0.41 → 0.73 (+78%)
-- **Hit Rate Improvement**: 20% → 90% (+70%)
-- **Status**: Kept - Major improvement
+| Iteration | Score | Hit Rate | Key Improvement |
+|-----------|-------|----------|-----------------|
+| Baseline | 0.41 | 20% | - |
+| **Iter 1**: Semantic Chunking | 0.73 | 90% | Sentence-aware + section detection |
+| **Iter 2**: Fix Acknowledgments | 0.79 | 100% | Filter acknowledgments + query expansion |
+| **Iter 3**: Cross-Encoder Rerank | **0.85** | 90% | Two-stage retrieval (embedding + cross-encoder) |
 
-### Key Improvements
-1. **Sentence-aware chunking** - No more mid-word splits
-2. **Section detection** - Identifies abstract, intro, methodology, references
-3. **Noise filtering** - Removes references and tiny fragments
-4. **Section boosting** - Abstract gets 1.5x priority, introduction 1.3x
+**Total Improvement**: 0.41 → 0.85 (+107%)
 
 ## Benchmark
 10 questions covering key paper aspects:

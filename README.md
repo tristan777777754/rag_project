@@ -15,6 +15,8 @@ This project demonstrates the iterative improvement of a PDF question-answering 
 
 ## 📊 Performance Evolution
 
+> ⚠️ **Note**: These metrics were measured on a single academic paper (Heath-Jarrow-Morton derivatives pricing, 37 pages). The benchmark contains 10 questions specifically designed for this document. While the techniques are designed to generalize, performance may vary on different document types (legal contracts, medical records, multi-modal PDFs, etc.).
+
 | Iteration | Technique | Score | Hit Rate |
 |-----------|-----------|-------|----------|
 | Baseline | Basic chunking + Embedding | 0.41 | 20% |
@@ -267,13 +269,20 @@ Key parameters in `retrieve_relevant_chunks()`:
 
 **Result**: Page 1 correctly retrieved for all introduction queries
 
-## 🎓 Key Learnings
+## 🎓 Key Learnings & Limitations
 
 1. **Chunking matters more than embedding**: Semantic boundaries beat larger chunks
 2. **Section detection is fragile**: Need fallback to page-based routing
 3. **Hybrid > Single method**: BM25 for precision, embeddings for recall
 4. **Query routing is essential**: Different queries need different strategies
 5. **Cross-encoder is worth it**: Significant relevance improvement for small latency cost
+
+### ⚠️ Limitations
+
+- **Single-document evaluation**: All performance metrics based on one academic paper. Multi-PDF validation needed for production use.
+- **Text-only**: Does not extract tables, figures, or mathematical formulas
+- **English only**: Section detection tuned for English academic papers
+- **Query-dependent**: Performance varies based on how well query matches document vocabulary
 
 ## 🔮 Future Improvements
 

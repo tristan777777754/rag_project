@@ -1,9 +1,10 @@
 """
-Hybrid Retriever: Combines BM25 (keyword) + Embedding (semantic) + Cross-encoder (reranking)
+Hybrid Retriever: Combines BM25 (keyword) + Embedding (semantic) + Query Routing + Cross-encoder
 """
 from app.embeddings.embedder import embed_query
 from app.vector_store.chroma_store import search_chunks_with_section_boost, search_chunks, get_collection_count
 from app.retrieval.query_expansion import expand_query
+from app.retrieval.query_router import get_section_boost_for_query, get_page_boost_for_query, classify_query
 from app.retrieval.bm25_retriever import BM25Retriever
 from typing import List, Dict, Any
 
@@ -14,7 +15,6 @@ def _get_bm25_retriever() -> BM25Retriever:
     """Lazy initialization of BM25 retriever from all chunks in ChromaDB."""
     global _bm25_retriever
     if _bm25_retriever is None:
-        # Get all chunks from ChromaDB
         from app.vector_store.chroma_store import collection
         all_data = collection.get()
         
@@ -31,19 +31,26 @@ def _get_bm25_retriever() -> BM25Retriever:
     return _bm25_retriever
 
 
-def _retrieve_candidates_embedding(query: str, top_k: int = 20, use_section_boost: bool = True) -> List[Dict]:
-    """Retrieve candidates using embedding search."""
+def _retrieve_candidates_embedding(query: str, top_k: int = 20, use_query_routing: bool = False) -> List[Dict]:
+    """
+    Retrieve candidates using embedding search.
+    Note: Query routing is applied AFTER hybrid merge, not here.
+    """
     expanded_queries = expand_query(query)
     all_results = []
     seen_chunks = set()
     
+    # Use default section boost (no query routing at this stage)
+    section_boost = None
+    
     for eq in expanded_queries[:2]:
         query_embedding = embed_query(eq)
         
-        if use_section_boost:
-            results = search_chunks_with_section_boost(query_embedding, top_k=top_k)
-        else:
-            results = search_chunks(query_embedding, top_k=top_k)
+        results = search_chunks_with_section_boost(
+            query_embedding, 
+            top_k=top_k,
+            section_boost=section_boost
+        )
         
         documents = results["documents"][0]
         metadatas = results["metadatas"][0]
@@ -66,7 +73,7 @@ def _retrieve_candidates_embedding(query: str, top_k: int = 20, use_section_boos
                 "_hash": doc_hash
             })
     
-    return all_results
+    return [{k: v for k, v in r.items() if k != "_hash"} for r in all_results]
 
 
 def _retrieve_candidates_bm25(query: str, top_k: int = 20) -> List[Dict]:
@@ -79,28 +86,51 @@ def _retrieve_candidates_bm25(query: str, top_k: int = 20) -> List[Dict]:
         return []
 
 
+def _apply_query_reranking(results: List[Dict], query: str) -> List[Dict]:
+    """
+    Re-rank results based on query type, section, and page relevance.
+    """
+    query_type = classify_query(query)
+    section_boost = get_section_boost_for_query(query)
+    page_boost = get_page_boost_for_query(query)
+    
+    scored_results = []
+    for chunk in results:
+        section = chunk.get("section", "body")
+        page = chunk.get("page", 999)
+        base_score = chunk.get("hybrid_score", 0.5)
+        
+        # Apply section boost
+        sec_boost = section_boost.get(section, 1.0)
+        
+        # Apply page boost (for introduction queries, boost early pages)
+        pg_boost = page_boost.get(page, 1.0)
+        
+        # Combined boost
+        final_score = base_score * sec_boost * pg_boost
+        
+        chunk_copy = chunk.copy()
+        chunk_copy["final_score"] = final_score
+        chunk_copy["query_type"] = query_type
+        chunk_copy["boost_factors"] = f"sec:{sec_boost:.1f}, pg:{pg_boost:.1f}"
+        scored_results.append(chunk_copy)
+    
+    # Sort by final score
+    scored_results.sort(key=lambda x: x["final_score"], reverse=True)
+    return scored_results
+
+
 def _merge_hybrid_results(
     embedding_results: List[Dict], 
     bm25_results: List[Dict], 
     alpha: float = 0.5
 ) -> List[Dict]:
-    """
-    Merge embedding and BM25 results with weighted scoring.
-    
-    Args:
-        embedding_results: Results from embedding search
-        bm25_results: Results from BM25 search
-        alpha: Weight for BM25 (1-alpha for embedding)
-    
-    Returns:
-        Merged and sorted results
-    """
+    """Merge embedding and BM25 results with weighted scoring."""
     merged = {}
     
     # Normalize embedding scores (rank-based)
     for rank, chunk in enumerate(embedding_results):
-        chunk_id = chunk.get("_hash", hash(chunk["text"][:200]))
-        # Higher rank = lower score (0 to 1 scale)
+        chunk_id = hash(chunk["text"][:200])
         emb_score = 1.0 - (rank / len(embedding_results)) if embedding_results else 0
         merged[chunk_id] = {
             "chunk": chunk,
@@ -110,7 +140,6 @@ def _merge_hybrid_results(
     
     # Normalize BM25 scores
     if bm25_results:
-        # Get raw scores
         raw_scores = [c.get("bm25_score", 0) for c in bm25_results]
         max_score = max(raw_scores) if raw_scores else 1
         min_score = min(raw_scores) if raw_scores else 0
@@ -118,7 +147,6 @@ def _merge_hybrid_results(
         
         for rank, chunk in enumerate(bm25_results):
             chunk_id = hash(chunk["text"][:200])
-            # Normalize to 0-1
             raw_bm25 = chunk.get("bm25_score", 0)
             bm25_norm = (raw_bm25 - min_score) / score_range if score_range > 0 else 0
             
@@ -138,7 +166,7 @@ def _merge_hybrid_results(
     # Sort by hybrid score
     sorted_results = sorted(merged.values(), key=lambda x: x["hybrid_score"], reverse=True)
     
-    # Return chunks without internal scores
+    # Return chunks with scores
     final_results = []
     for data in sorted_results:
         chunk = data["chunk"].copy()
@@ -153,54 +181,62 @@ def _merge_hybrid_results(
 def retrieve_relevant_chunks(
     query: str, 
     top_k: int = 5, 
-    use_section_boost: bool = True, 
+    use_query_routing: bool = True,
     use_reranker: bool = True,
     use_hybrid: bool = True,
     hybrid_alpha: float = 0.5
 ) -> List[Dict[str, Any]]:
     """
-    Retrieve relevant chunks using hybrid search.
-    
-    Three-stage retrieval:
-    1. Hybrid retrieval: BM25 + Embedding (recall)
-    2. Cross-encoder reranking (precision)
+    Retrieve relevant chunks using hybrid search with query routing.
     
     Args:
         query: The search query
         top_k: Number of chunks to retrieve
-        use_section_boost: Whether to boost abstract/intro sections
+        use_query_routing: Whether to use query-aware section routing
         use_reranker: Whether to use cross-encoder reranking
         use_hybrid: Whether to use BM25 + Embedding hybrid
-        hybrid_alpha: Weight for BM25 (0.5 = equal, higher = more BM25)
+        hybrid_alpha: Weight for BM25 (0.5 = equal)
     """
     
+    # Log query classification
+    if use_query_routing:
+        query_type = classify_query(query)
+        # Detect available sections from a sample of candidates
+        sample_results = _retrieve_candidates_embedding(query, top_k=10, use_query_routing=False)
+        available_sections = list(set(c.get('section', 'body') for c in sample_results))
+        section_boost = get_section_boost_for_query(query, available_sections)
+        print(f"[Query Router] Type: {query_type}, Available: {available_sections}, Boost: {section_boost}")
+    
+    # Use larger initial top_k to ensure early pages are recalled
+    # Then query routing will boost them appropriately
+    initial_top_k = max(top_k * 4, 20)  # At least 20 to capture introduction content
+    
     if use_hybrid:
-        # Stage 1a: BM25 retrieval
-        bm25_results = _retrieve_candidates_bm25(query, top_k=top_k * 2)
-        
-        # Stage 1b: Embedding retrieval
-        emb_results = _retrieve_candidates_embedding(query, top_k=top_k * 2, use_section_boost=use_section_boost)
-        
-        # Stage 1c: Merge
+        # Stage 1: Hybrid retrieval
+        bm25_results = _retrieve_candidates_bm25(query, top_k=initial_top_k)
+        emb_results = _retrieve_candidates_embedding(query, top_k=initial_top_k, use_query_routing=False)
         candidates = _merge_hybrid_results(emb_results, bm25_results, alpha=hybrid_alpha)
     else:
-        # Fallback to embedding only
-        candidates = _retrieve_candidates_embedding(query, top_k=top_k * 4, use_section_boost=use_section_boost)
+        candidates = _retrieve_candidates_embedding(query, top_k=initial_top_k, use_query_routing=False)
+    
+    # Stage 2: Query-aware re-ranking
+    if use_query_routing:
+        candidates = _apply_query_reranking(candidates, query)
     
     if not use_reranker:
         return candidates[:top_k]
     
-    # Stage 2: Cross-encoder reranking
+    # Stage 3: Cross-encoder reranking
     try:
         from app.retrieval.reranker import rerank_chunks
         reranked = rerank_chunks(query, candidates, top_k=top_k)
         return reranked
     except Exception as e:
-        print(f"Reranking failed: {e}, falling back to hybrid results")
+        print(f"Reranking failed: {e}")
         return candidates[:top_k]
 
 
 def reset_retriever():
-    """Reset the BM25 retriever (call when new PDF is ingested)."""
+    """Reset the BM25 retriever."""
     global _bm25_retriever
     _bm25_retriever = None

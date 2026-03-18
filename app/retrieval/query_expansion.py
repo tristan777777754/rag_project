@@ -5,15 +5,16 @@ Expands natural questions to better match academic paper content.
 
 # Query expansion templates for common question types
 QUERY_EXPANSIONS = {
-    # What does this paper introduce/present
+    # What does this paper introduce/present - EXPANDED for various academic writing styles
     "introduce": ["paper introduces", "this paper", "we present", "we propose", "novel", 
-                  "approach", "framework", "method"],
+                  "approach", "framework", "method", "here we show", "we demonstrate",
+                  "we report", "this study", "we examine", "we investigate"],
     # Problem being solved
     "problem": ["problem", "challenge", "limitations", "computational", "expensive", 
                 "prohibitive", "intractable"],
     # Abstract summarization
     "abstract": ["abstract", "paper introduces", "we present", "this paper", "approach",
-                 "framework", "method", "results"],
+                 "framework", "method", "results", "here we show"],
     # Method comparison
     "compare": ["compared", "comparison", "versus", "vs", "better", "improvement", 
                 "faster", "speedup", "accuracy"],

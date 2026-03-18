@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=OpenClaw Control Center
+Comment=Launch local OpenClaw dashboard
+Exec=/home/parallels/.local/bin/openclaw-control-center.sh
+Icon=utilities-terminal
+Terminal=false
+Categories=Utility;Development;

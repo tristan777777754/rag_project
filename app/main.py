@@ -1,19 +1,23 @@
 from app.ingestion.pdf_loader import load_pdf
-from app.processing.text_splitter import split_pages_into_chunks
+from app.processing.text_splitter import split_pages_into_chunks_semantic, filter_noisy_chunks
 from app.embeddings.embedder import embed_texts
 from app.vector_store.chroma_store import store_chunks, get_collection_count
-from app.retrieval.retriever import retrieve_relevant_chunks
+from app.retrieval.retriever import retrieve_relevant_chunks, reset_retriever
 from app.llm.kimi_client import ask_kimi_with_context
 
 
 def ingest_pdf():
     pages = load_pdf("data/raw/sample.pdf")
-    chunks = split_pages_into_chunks(pages)
+    chunks = split_pages_into_chunks_semantic(pages)
+    filtered_chunks = filter_noisy_chunks(chunks)
 
-    text_list = [chunk["text"] for chunk in chunks]
+    text_list = [chunk["text"] for chunk in filtered_chunks]
     embeddings = embed_texts(text_list)
 
-    store_chunks(chunks, embeddings)
+    store_chunks(filtered_chunks, embeddings)
+    
+    # Reset BM25 retriever so it will be rebuilt with new chunks
+    reset_retriever()
 
     print("PDF ingested successfully!")
     print("Total chunks stored:", get_collection_count())

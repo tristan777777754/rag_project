@@ -9,28 +9,48 @@ from typing import List, Dict, Any
 def detect_section(text: str, page_num: int) -> str:
     """
     Detect the section type based on content patterns.
-    Returns: abstract, introduction, methodology, results, conclusion, references, or body
+    Returns: abstract, introduction, methodology, results, conclusion, references, acknowledgments, or body
     """
     text_lower = text.lower().strip()
     first_500 = text_lower[:500]
     
-    # Page 1 with abstract keywords
+    # Check for acknowledgments first (filter these out)
+    ack_keywords = ['acknowledgments', 'i would like to thank', 'i am grateful', 'thank my', 
+                    'dissertation committee', 'mentorship', 'for their support', 'for helpful comments']
+    if any(kw in first_500 for kw in ack_keywords):
+        return 'acknowledgments'
+    if page_num == 1 and 'thank' in first_500 and ('committee' in first_500 or 'mentor' in first_500):
+        return 'acknowledgments'
+    
+    # Page 1 with abstract keywords - must be early in the document and contain academic content
     if page_num == 1:
-        if 'abstract' in first_500 or text_lower.startswith('abstract'):
+        # Check for explicit abstract header
+        if text_lower.startswith('abstract') or '\nabstract\n' in first_500:
             return 'abstract'
-        if any(kw in first_500 for kw in ['this paper introduces', 'we propose', 'in this paper']):
+        # Check for abstract content patterns (academic paper indicators)
+        # Broad academic terms that indicate abstract/methodology content
+        academic_indicators = ['paper introduces', 'we propose', 'this study', 'we present', 
+                               'framework', 'model', 'algorithm', 'method', 'approach',
+                               'neural network', 'finn', 'pde', 'differential equation',
+                               'monte carlo', 'pricing', 'derivatives', 'accuracy',
+                               'speedup', 'results show', 'compared to']
+        has_academic = any(kw in first_500 for kw in academic_indicators)
+        # Check for narrative abstract style (not acknowledgments)
+        not_acknowledgments = 'thank' not in first_500 and 'grateful' not in first_500
+        
+        if has_academic and not_acknowledgments:
             return 'abstract'
     
     # Section headers detection
-    lines = text_lower.split('\n')[:3]  # Check first 3 lines
+    lines = text_lower.split('\n')[:5]  # Check first 5 lines for headers
     for line in lines:
         line = line.strip()
         if line.startswith('introduction') or line == '1 introduction' or line == '1. introduction':
             return 'introduction'
         if any(line.startswith(x) for x in ['2 ', '3 ', '4 ', '5 ', '6 ', '7 ']):
-            if any(kw in line for kw in ['methodology', 'model', 'framework', 'approach']):
+            if any(kw in line for kw in ['methodology', 'model', 'framework', 'approach', 'method']):
                 return 'methodology'
-            if any(kw in line for kw in ['results', 'experiments', 'evaluation']):
+            if any(kw in line for kw in ['results', 'experiments', 'evaluation', 'empirical']):
                 return 'results'
             if any(kw in line for kw in ['conclusion', 'discussion', 'future work']):
                 return 'conclusion'
@@ -87,13 +107,11 @@ def split_pages_into_chunks_semantic(
         text = page["text"]
         page_num = page["page"]
         
-        # Detect section for this page content
-        section = detect_section(text, page_num)
-        
         # Skip tiny pages
         if len(text.strip()) < min_chunk_size:
             # Still keep very short pages if they're page 1 (abstract might be short)
             if page_num == 1 and len(text.strip()) > 50:
+                section = detect_section(text, page_num)
                 chunks.append({
                     "text": text.strip(),
                     "page": page_num,
@@ -120,6 +138,8 @@ def split_pages_into_chunks_semantic(
                 # Store current chunk
                 chunk_text = " ".join(current_chunk_sentences)
                 if len(chunk_text) >= min_chunk_size:
+                    # Detect section PER CHUNK, not per page
+                    section = detect_section(chunk_text, page_num)
                     position = "start" if page_num == 1 and not chunks else "body"
                     chunks.append({
                         "text": chunk_text,
@@ -144,6 +164,8 @@ def split_pages_into_chunks_semantic(
         if current_chunk_sentences:
             chunk_text = " ".join(current_chunk_sentences)
             if len(chunk_text) >= min_chunk_size:
+                # Detect section PER CHUNK, not per page
+                section = detect_section(chunk_text, page_num)
                 position = "start" if page_num == 1 and not chunks else "body"
                 chunks.append({
                     "text": chunk_text,
@@ -157,7 +179,7 @@ def split_pages_into_chunks_semantic(
 
 def filter_noisy_chunks(chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
-    Filter out noisy chunks like references, tiny fragments, table data.
+    Filter out noisy chunks like references, acknowledgments, tiny fragments, table data.
     Preserves abstract even if short.
     """
     filtered = []
@@ -171,8 +193,8 @@ def filter_noisy_chunks(chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             filtered.append(chunk)
             continue
         
-        # Skip references sections
-        if section == "references":
+        # Skip references and acknowledgments sections
+        if section in ("references", "acknowledgments"):
             continue
         
         # Skip very tiny fragments

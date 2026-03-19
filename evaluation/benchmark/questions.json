@@ -1,82 +1,74 @@
 [
   {
     "id": "q1",
-    "question": "What does this paper introduce?",
-    "expected_topic": "Feynman-Kac approach to pricing path-dependent interest rate derivatives using Finance-Informed Neural Networks (FINNs)",
-    "expected_section": "abstract",
-    "expected_page": 1,
-    "notes": "Should retrieve the abstract or introduction describing the FINN framework for derivatives pricing"
+    "query": "What factor does this paper propose?",
+    "query_type": "contribution",
+    "gold_section": ["abstract", "introduction"],
+    "gold_answer": "Main contribution or proposed factor/anomaly of the paper",
+    "notes": "Should retrieve the abstract or introduction where the paper states its main factor contribution. Replace the gold answer with the actual factor name for your paper."
   },
   {
     "id": "q2",
-    "question": "What problem does this paper solve?",
-    "expected_topic": "Heath-Jarrow-Morton model is infinite-dimensional and computationally prohibitive with Monte Carlo",
-    "expected_section": "abstract, introduction",
-    "expected_page": 1,
-    "notes": "Should mention HJM framework computational challenges and Monte Carlo limitations"
+    "query": "How is the factor constructed?",
+    "query_type": "factor_definition",
+    "gold_section": ["methodology", "introduction"],
+    "gold_answer": "Description of factor construction, signal definition, or firm characteristic used in portfolio sorting",
+    "notes": "Should retrieve methodology text describing how the factor/signal is defined."
   },
   {
     "id": "q3",
-    "question": "Summarize the abstract of this paper.",
-    "expected_topic": "No-arbitrage Monte Carlo-free derivatives pricing using FINNs to solve PDEs",
-    "expected_section": "abstract",
-    "expected_page": 1,
-    "notes": "MUST retrieve page 1 abstract. This tests if the retriever captures the most important section."
+    "query": "What dataset is used?",
+    "query_type": "data_sample",
+    "gold_section": ["methodology", "results"],
+    "gold_answer": "Primary dataset names such as CRSP, Compustat, WRDS, or described asset universe",
+    "notes": "Should retrieve the data section or empirical setting."
   },
   {
     "id": "q4",
-    "question": "What role does the PDE play in this paper?",
-    "expected_topic": "PDE converts stochastic pricing problem to deterministic form for FINNs to solve",
-    "expected_section": "abstract, introduction",
-    "expected_page": 1,
-    "notes": "Should explain how PDE makes the problem tractable and how FINNs minimize PDE violations"
+    "query": "What is the sample period?",
+    "query_type": "data_sample",
+    "gold_section": ["methodology", "results"],
+    "gold_answer": "Time range of the empirical sample period used in the study",
+    "notes": "Should retrieve dates or sample window information."
   },
   {
     "id": "q5",
-    "question": "How does the FINN method compare with Monte Carlo?",
-    "expected_topic": "FINNs achieve 300,000 to 4.5 million times speedup over Monte Carlo",
-    "expected_section": "abstract, results",
-    "expected_page": 1,
-    "notes": "Should mention speedup numbers and Greeks computation advantages"
+    "query": "How are portfolios constructed?",
+    "query_type": "methodology_portfolio",
+    "gold_section": ["methodology", "results"],
+    "gold_answer": "Portfolio sorting procedure such as decile/quintile sorts, long-short portfolio formation, or weighting scheme",
+    "notes": "Should retrieve portfolio construction methodology."
   },
   {
     "id": "q6",
-    "question": "What are the major Greeks mentioned and how are they computed?",
-    "expected_topic": "Theta and curve deltas, computed automatically at zero marginal cost via automatic differentiation",
-    "expected_section": "abstract",
-    "expected_page": 1,
-    "notes": "Should retrieve abstract content about Greeks"
+    "query": "What benchmark is used?",
+    "query_type": "benchmark",
+    "gold_section": ["results", "methodology"],
+    "gold_answer": "Benchmark model or baseline such as CAPM, Fama-French, Carhart, or existing factor models",
+    "notes": "Should retrieve benchmark comparison text."
   },
   {
     "id": "q7",
-    "question": "What is the HJM framework?",
-    "expected_topic": "Heath-Jarrow-Morton framework for arbitrage-free pricing of interest rate derivatives",
-    "expected_section": "introduction",
-    "expected_page": 2,
-    "notes": "Should retrieve introduction explaining HJM framework"
+    "query": "What performance metrics are reported?",
+    "query_type": "performance",
+    "gold_section": ["results", "abstract"],
+    "gold_answer": "Performance metrics such as alpha, excess return, Sharpe ratio, spread return, or t-statistic",
+    "notes": "Should retrieve results-oriented chunks with performance reporting."
   },
   {
     "id": "q8",
-    "question": "What accuracy does the FINN method achieve?",
-    "expected_topic": "0.04 to 0.07 cents per dollar of contract value",
-    "expected_section": "abstract, results",
-    "expected_page": 1,
-    "notes": "Should retrieve specific accuracy metrics from abstract"
+    "query": "Are transaction costs or robustness checks discussed?",
+    "query_type": "robustness",
+    "gold_section": ["results", "conclusion"],
+    "gold_answer": "Robustness checks such as transaction costs, turnover, subsample analysis, or out-of-sample tests",
+    "notes": "Should retrieve robustness discussion or additional empirical tests."
   },
   {
     "id": "q9",
-    "question": "What other derivatives can this framework generalize to?",
-    "expected_topic": "Caps, swaptions, callable bonds",
-    "expected_section": "abstract",
-    "expected_page": 1,
-    "notes": "Should retrieve list of generalizable derivatives from abstract"
-  },
-  {
-    "id": "q10",
-    "question": "What is automatic differentiation used for in this paper?",
-    "expected_topic": "Computing exact derivatives needed to evaluate PDE terms",
-    "expected_section": "abstract, methodology",
-    "expected_page": 1,
-    "notes": "Should explain how autodiff computes PDE derivatives"
+    "query": "What limitations does the paper mention?",
+    "query_type": "limitations",
+    "gold_section": ["conclusion", "abstract"],
+    "gold_answer": "Stated limitations, caveats, implementation frictions, or future research directions",
+    "notes": "Should retrieve discussion/conclusion text."
   }
 ]

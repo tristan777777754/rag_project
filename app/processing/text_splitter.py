@@ -3,8 +3,8 @@ Header-driven semantic chunking for finance papers.
 
 Design:
 - Detect page sections using a document state machine.
-- Separate top-level section from subsection topic.
-- Chunks inherit locked page metadata; they do not re-guess section from local text.
+- Preserve top-level section and subsection topic separately.
+- Chunks inherit locked page metadata; they do not re-guess section locally.
 """
 import re
 from typing import List, Dict, Any, Optional, Tuple
@@ -14,64 +14,17 @@ CANONICAL_SECTION_MAP = {
     "front_matter": "front_matter",
     "abstract": "abstract",
     "introduction": "introduction",
+    "related_literature": "introduction",
     "methodology_portfolio": "methodology",
     "data_sample": "methodology",
     "performance": "results",
     "robustness": "results",
-    "discussion": "body",
     "conclusion": "conclusion",
     "references": "references",
+    "appendix": "body",
+    "figures_tables": "body",
     "acknowledgments": "acknowledgments",
     "body": "body",
-}
-
-# Only these are allowed to change the top-level section state.
-MAJOR_HEADER_TO_TOPIC = {
-    "abstract": "abstract",
-    "summary": "introduction",
-    "questions": "introduction",
-    "introduction": "introduction",
-    "structural estimation": "methodology_portfolio",
-    "quantitative theories": "methodology_portfolio",
-    "conclusion": "conclusion",
-    "references": "references",
-    "bibliography": "references",
-    "acknowledgments": "acknowledgments",
-    "acknowledgements": "acknowledgments",
-    "implications": "discussion",
-}
-
-# These are subsection topics. They should not necessarily change the top-level section.
-SUBSECTION_TOPIC_MAP = {
-    "summary": "introduction",
-    "questions": "introduction",
-    "mechanisms": "introduction",
-    "methods": "introduction",
-    "factor models": "introduction",
-    "intuition": "introduction",
-    "subsequent work": "introduction",
-    "structural estimation": "methodology_portfolio",
-    "quantitative theories": "methodology_portfolio",
-    "data": "data_sample",
-    "sample": "data_sample",
-    "dataset": "data_sample",
-    "empirical setting": "data_sample",
-    "performance": "performance",
-    "results": "performance",
-    "robustness": "robustness",
-    "additional tests": "robustness",
-    "sensitivity analysis": "robustness",
-    "implications": "discussion",
-    "complementarity with the consumption capm": "discussion",
-    "an emh counterrevolution to behavioral finance": "discussion",
-    "how i defend fama": "discussion",
-    "security analysis within efficient markets": "discussion",
-    "rational expectations economics": "discussion",
-    "challenges": "discussion",
-    "a risky mechanism of momentum": "discussion",
-    "other asset classes": "discussion",
-    "conclusion": "conclusion",
-    "references": "references",
 }
 
 
@@ -82,121 +35,189 @@ def _normalize_line(line: str) -> str:
     return line.strip(" .:-")
 
 
-def _looks_like_header(line: str) -> bool:
+def _page_preview_lines(text: str, limit: int = 60) -> List[str]:
+    return [line.strip() for line in text.split("\n")[:limit] if line.strip()]
+
+
+def _clean_header_text(line: str) -> str:
+    normalized = _normalize_line(line)
+    normalized = re.sub(r"^(section\s+)?(\d+(\.\d+)*|[ivxlcdm]+|[a-z])\s*[\.)-]?\s+", "", normalized)
+    return normalized.strip()
+
+
+def _header_level(line: str) -> Optional[int]:
+    normalized = _normalize_line(line)
+    if re.match(r"^\d+\s*[\.)-]?\s+", normalized):
+        return 1
+    if re.match(r"^\d+\.\d+\s*[\.)-]?\s+", normalized):
+        return 2
+    if re.match(r"^\d+\.\d+\.\d+\s*[\.)-]?\s+", normalized):
+        return 3
+    if re.match(r"^[a-z]\s*[\.)-]?\s+", normalized):
+        return 1
+    return None
+
+
+def _looks_like_plain_header(line: str) -> bool:
     normalized = _normalize_line(line)
     if not normalized or len(normalized) > 90:
         return False
-    if re.fullmatch(r"\d+", normalized):
-        return False
-    if re.search(r"[.!?;:]", normalized):
+    if re.search(r"[!?]", normalized):
         return False
     words = normalized.split()
     if len(words) > 10:
         return False
-    boilerplate = {
-        "nber working paper series",
-        "q-factors and investment capm",
-        "lu zhang",
-        "working paper 26538",
-        "national bureau of economic research",
-        "december 2019",
-        "jel no e13,e22,e32,e44,g12,g14,g31,m41",
+    common = {
+        "abstract", "introduction", "related literature", "methodology", "data",
+        "conclusion", "references", "bibliography", "appendix", "simulation procedure",
+        "tables", "figures", "robustness", "methods", "results"
     }
-    if normalized in boilerplate:
-        return False
-    return True
+    return normalized in common
 
 
-def _match_header_topic(line: str) -> Optional[str]:
-    normalized = _normalize_line(line)
-    if not _looks_like_header(normalized):
-        return None
-    return SUBSECTION_TOPIC_MAP.get(normalized)
+def _extract_candidate_headers(lines: List[str]) -> List[Tuple[int, str]]:
+    candidates = []
+    for idx, line in enumerate(lines):
+        level = _header_level(line)
+        if level is not None or _looks_like_plain_header(line):
+            candidates.append((idx, line))
+
+        # Handle split headers such as:
+        # "4" + "Transaction costs with funding liquidity"
+        # "2.1" + "Measuring the effective bid-ask spread from daily prices"
+        if re.fullmatch(r"(\d+(\.\d+)*|[ivxlcdm]+|[a-z])", _normalize_line(line)) and idx + 1 < len(lines):
+            combined = f"{line} {lines[idx + 1]}"
+            candidates.append((idx, combined))
+    return candidates
 
 
-def _match_major_topic(line: str) -> Optional[str]:
-    normalized = _normalize_line(line)
-    if not _looks_like_header(normalized):
-        return None
-    return MAJOR_HEADER_TO_TOPIC.get(normalized)
+def _topic_from_header_text(header_text: str) -> Optional[str]:
+    h = _clean_header_text(header_text)
 
+    exact = {
+        "abstract": "abstract",
+        "introduction": "introduction",
+        "related literature": "related_literature",
+        "methodology": "methodology_portfolio",
+        "data": "data_sample",
+        "conclusion": "conclusion",
+        "references": "references",
+        "bibliography": "references",
+        "simulation procedure": "appendix",
+        "tables": "figures_tables",
+        "figures": "figures_tables",
+    }
+    if h in exact:
+        return exact[h]
 
-def _page_preview_lines(text: str, limit: int = 40) -> List[str]:
-    return [line.strip() for line in text.split("\n")[:limit] if line.strip()]
+    if any(x in h for x in [
+        "measuring the effective bid-ask spread",
+        "the model of roll",
+        "the bayesian procedure",
+        "hasbouck model with funding liquidity",
+        "hasbrouck model with funding liquidity",
+        "estimation by gibbs sampling",
+        "bayes factor",
+    ]):
+        return "methodology_portfolio"
+
+    if any(x in h for x in [
+        "transaction costs with funding liquidity",
+        "average transaction costs",
+        "the dynamics of transaction costs",
+        "transaction costs and firm size",
+        "transaction costs and volatility",
+        "transaction costs and momentum",
+        "transaction costs and flight to quality",
+        "gross returns and net returns of anomalies",
+        "performance of long-short strategies",
+    ]):
+        return "performance"
+
+    if any(x in h for x in [
+        "robustness",
+        "transaction costs with other conditioning financial variables",
+        "transaction costs and the vix",
+        "transaction costs and tail risk",
+        "the lesmond et al",
+        "lot model",
+        "cost-mitigating trading strategies",
+    ]):
+        return "robustness"
+
+    return None
 
 
 def detect_page_sections(pages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     detected_pages: List[Dict[str, Any]] = []
     current_topic = "front_matter"
     current_subtopic = "front_matter"
-    abstract_seen = False
     total_pages = len(pages)
 
     for page in pages:
         page_num = page["page"]
         text = page["text"]
-        early_lines = _page_preview_lines(text)
-
-        matched_major = None
-        matched_sub = None
-
-        for line in early_lines:
-            if matched_major is None:
-                matched_major = _match_major_topic(line)
-            if matched_sub is None:
-                matched_sub = _match_header_topic(line)
-            if matched_major and matched_sub:
-                break
+        lines = _page_preview_lines(text)
+        candidates = _extract_candidate_headers(lines)
 
         page_topic = current_topic
         page_subtopic = current_subtopic
 
-        if matched_major:
-            page_topic = matched_major
-            current_topic = matched_major
-            page_subtopic = matched_sub or matched_major
+        # Front matter / abstract explicit handling.
+        if page_num == 1:
+            page_topic = "front_matter"
+            page_subtopic = "front_matter"
+            current_topic = page_topic
             current_subtopic = page_subtopic
-            if matched_major == "abstract":
-                abstract_seen = True
+        elif any(_normalize_line(line) == "abstract" for _, line in candidates[:5]):
+            page_topic = "abstract"
+            page_subtopic = "abstract"
+            current_topic = page_topic
+            current_subtopic = page_subtopic
         else:
-            # Limited fallback only for front matter / abstract / references.
-            if page_num == 1:
-                page_topic = "front_matter"
-                page_subtopic = "front_matter"
-                current_topic = page_topic
+            matched_topic = None
+            matched_subtopic = None
+
+            for idx, line in candidates:
+                topic = _topic_from_header_text(line)
+                if not topic:
+                    continue
+                level = _header_level(line)
+
+                # Major numbered top-level headers or strong plain headers switch section.
+                if level == 1 or _looks_like_plain_header(line):
+                    matched_topic = topic
+                    matched_subtopic = topic
+                    break
+
+                # Lower-level numbered headers become subsection markers only.
+                if level and level >= 2 and matched_subtopic is None:
+                    matched_subtopic = topic
+
+            if matched_topic:
+                page_topic = matched_topic
+                current_topic = matched_topic
+                page_subtopic = matched_subtopic or matched_topic
                 current_subtopic = page_subtopic
-            elif not abstract_seen and page_num <= 3:
-                joined = " ".join(early_lines[:10]).lower()
-                if "abstract" in joined:
-                    page_topic = "abstract"
-                    page_subtopic = "abstract"
-                    current_topic = page_topic
-                    current_subtopic = page_subtopic
-                    abstract_seen = True
-                elif current_topic == "front_matter" and len(text.strip()) > 400:
-                    page_topic = "abstract"
-                    page_subtopic = "abstract"
-                    current_topic = page_topic
-                    current_subtopic = page_subtopic
-                    abstract_seen = True
-                elif matched_sub:
-                    page_subtopic = matched_sub
-                    current_subtopic = matched_sub
-            elif page_num >= total_pages - 5:
-                joined = " ".join(early_lines[:12]).lower()
-                reference_markers = ["references", "bibliography", "journal of", "review of", "econometrica"]
-                if current_topic == "references" or sum(marker in joined for marker in reference_markers) >= 2:
+            else:
+                # References fallback near end only.
+                joined = " ".join(lines[:20]).lower()
+                if page_num >= total_pages - 25 and (
+                    "references" in joined[:300] or "bibliography" in joined[:300]
+                ):
                     page_topic = "references"
                     page_subtopic = "references"
                     current_topic = page_topic
                     current_subtopic = page_subtopic
-                elif matched_sub:
-                    page_subtopic = matched_sub
-                    current_subtopic = matched_sub
-            else:
-                if matched_sub:
-                    page_subtopic = matched_sub
-                    current_subtopic = matched_sub
+                elif current_topic == "abstract":
+                    # Abstract must not leak past early pages.
+                    page_topic = "introduction"
+                    page_subtopic = current_subtopic if current_subtopic != "abstract" else "introduction"
+                    current_topic = page_topic
+                    current_subtopic = page_subtopic
+                else:
+                    page_topic = current_topic
+                    page_subtopic = current_subtopic
 
         enriched = dict(page)
         enriched["section_topic"] = page_topic
@@ -211,17 +232,12 @@ def detect_section(text: str, page_num: int) -> str:
     lines = _page_preview_lines(text)
     if page_num == 1:
         return "front_matter"
-
-    for line in lines:
-        topic = _match_major_topic(line)
+    if any(_normalize_line(line) == "abstract" for line in lines[:5]):
+        return "abstract"
+    for line in lines[:20]:
+        topic = _topic_from_header_text(line)
         if topic:
             return CANONICAL_SECTION_MAP.get(topic, "body")
-
-    joined = " ".join(lines[:8]).lower()
-    if page_num <= 3 and "abstract" in joined:
-        return "abstract"
-    if "references" in joined or "bibliography" in joined:
-        return "references"
     return "body"
 
 

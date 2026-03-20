@@ -17,7 +17,7 @@ print(f"Total chunks: {len(chunks)}")
 
 print("\n=== FIRST 30 CHUNKS ===")
 for chunk in chunks[:30]:
-    print(f"Page {chunk['page']} | Section: {chunk['section']}")
+    print(f"Page {chunk['page']} | Section: {chunk['section']} | Topic: {chunk.get('section_topic')} | Subtopic: {chunk.get('subsection_topic')}")
 
 print("\n=== PAGE SECTION PREVIEW ===")
 seen_pages = set()
@@ -29,7 +29,7 @@ for chunk in chunks:
     seen_pages.add(page)
 
     preview = chunk["text"][:300].replace("\n", " ")
-    print(f"\n--- Page {page} | Section: {chunk['section']} ---")
+    print(f"\n--- Page {page} | Section: {chunk['section']} | Topic: {chunk.get('section_topic')} | Subtopic: {chunk.get('subsection_topic')} ---")
     print(preview)
 
     if page >= 10:

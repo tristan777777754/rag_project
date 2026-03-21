@@ -1,9 +1,9 @@
 import re
 import fitz
+from statistics import median
 
 
 def _looks_like_short_header(text: str) -> bool:
-    """Keep genuine short section headers while still dropping tiny noise."""
     cleaned = text.strip()
     if not cleaned:
         return False
@@ -15,58 +15,74 @@ def _looks_like_short_header(text: str) -> bool:
     words = normalized.split()
     if not (1 <= len(words) <= 10):
         return False
-
-    # Keep standard academic numbered headers such as:
-    # "1 Introduction", "2 Methodology", "2.1 Data", "2.1.1 Portfolio construction", "A Appendix"
     if re.match(r"^(\d+(\.\d+)*|[A-Za-z])\s*[\.|-]?\s+[A-Za-z]", normalized):
         return True
-
-    # Keep plain short title-case / all-caps headers.
     if re.search(r"[.:;]", normalized):
         return False
+    return any(re.search(r"[A-Za-z]", w) for w in words)
 
-    alpha_words = [w for w in words if re.search(r"[A-Za-z]", w)]
-    if not alpha_words:
-        return False
 
-    return True
+def _extract_line_meta(page):
+    data = page.get_text("dict")
+    lines_meta = []
+    sizes = []
+
+    for block in data.get("blocks", []):
+        if block.get("type", 0) != 0:
+            continue
+        for line in block.get("lines", []):
+            spans = line.get("spans", [])
+            text = "".join(span.get("text", "") for span in spans).strip()
+            if not text:
+                continue
+            bbox = line.get("bbox", [0, 0, 0, 0])
+            max_size = max((span.get("size", 0) for span in spans), default=0)
+            max_flags = max((span.get("flags", 0) for span in spans), default=0)
+            is_upper = sum(1 for c in text if c.isalpha() and c.isupper()) > sum(1 for c in text if c.isalpha() and c.islower())
+            item = {
+                "text": text,
+                "y0": bbox[1],
+                "x0": bbox[0],
+                "y1": bbox[3],
+                "size": max_size,
+                "flags": max_flags,
+                "is_upper": is_upper,
+            }
+            lines_meta.append(item)
+            sizes.append(max_size)
+
+    lines_meta.sort(key=lambda x: (x["y0"], x["x0"]))
+    body_size = median(sizes) if sizes else 0
+    return lines_meta, body_size
 
 
 def load_pdf(file_path: str):
-    """
-    Load PDF and return a list of pages with cleaned text in reading order.
-    """
+    """Load PDF and preserve both text and lightweight layout metadata."""
     doc = fitz.open(file_path)
     pages = []
 
     for page_num, page in enumerate(doc):
-        blocks = page.get_text("blocks")
-
-        # sort blocks by vertical position first, then horizontal position
-        blocks = sorted(blocks, key=lambda b: (b[1], b[0]))
-
+        blocks = sorted(page.get_text("blocks"), key=lambda b: (b[1], b[0]))
         page_text_parts = []
 
         for block in blocks:
             x0, y0, x1, y1, text, *_ = block
-
             cleaned = text.strip()
             if not cleaned:
                 continue
-
-            # Skip tiny noisy blocks, but preserve short section headers such as
-            # "Summary", "Methods", "Conclusion", or "References".
             if len(cleaned) < 20 and not _looks_like_short_header(cleaned):
                 continue
-
             page_text_parts.append(cleaned)
 
         page_text = "\n".join(page_text_parts)
+        lines_meta, body_size = _extract_line_meta(page)
 
         if page_text.strip():
             pages.append({
                 "page": page_num + 1,
-                "text": page_text
+                "text": page_text,
+                "lines_meta": lines_meta,
+                "body_font_size": body_size,
             })
 
     doc.close()

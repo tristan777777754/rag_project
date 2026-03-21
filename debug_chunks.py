@@ -1,11 +1,12 @@
+import sys
 from app.ingestion.pdf_loader import load_pdf
 from app.processing.text_splitter import split_pages_into_chunks_semantic
 
 
-pdf_path = "data/raw/quant1.pdf"
+pdf_path = sys.argv[1] if len(sys.argv) > 1 else "data/raw/quant3.pdf"
 
 # 1. load pdf
-pages = load_pdf("data/raw/quant1.pdf")
+pages = load_pdf(pdf_path)
 
 print(f"Total pages: {len(pages)}")
 

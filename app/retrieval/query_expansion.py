@@ -33,11 +33,13 @@ QUERY_TYPE_EXPANSIONS: Dict[str, List[str]] = {
     ],
     "performance": [
         "alpha", "excess return", "average return", "sharpe ratio", "t-statistic",
-        "risk-adjusted return", "spread return", "factor premium", "performance results"
+        "risk-adjusted return", "spread return", "factor premium", "performance results",
+        "strong explanatory power", "summarizes the cross section", "earns on average"
     ],
     "robustness": [
         "robustness check", "transaction costs", "turnover", "subsample analysis",
-        "out-of-sample", "international evidence", "alternative specification", "additional tests"
+        "out-of-sample", "international evidence", "alternative specification", "additional tests",
+        "limitations", "caveats", "future research", "implementation frictions"
     ],
     "limitations": [
         "limitations", "caveats", "discussion", "future research", "boundary conditions",
@@ -69,6 +71,7 @@ def expand_query(query: str) -> List[str]:
     # abstract and details in results.
     if query_type == "performance":
         expansions.append("results alpha sharpe ratio excess return t-statistic")
+        expansions.append("abstract strong explanatory power summarizes the cross section alpha return t-statistic")
     elif query_type == "factor_definition":
         expansions.append("methodology factor construction signal definition sorting variable")
     elif query_type == "data_sample":
@@ -79,6 +82,7 @@ def expand_query(query: str) -> List[str]:
         expansions.append("benchmark fama-french capm baseline comparison alpha")
     elif query_type == "robustness":
         expansions.append("robustness transaction costs turnover subsample out-of-sample")
+        expansions.append("conclusion limitations caveats future research transaction costs robustness")
     elif query_type == "limitations":
         expansions.append("limitations caveats discussion future research")
     elif query_type == "contribution":

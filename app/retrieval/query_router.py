@@ -109,7 +109,7 @@ QUERY_TYPE_PAGE_BOOSTS: Dict[str, Dict[int, float]] = {
     "data_sample": {2: 1.3, 3: 1.3, 4: 1.1},
     "methodology_portfolio": {2: 1.3, 3: 1.3, 4: 1.2},
     "benchmark": {},
-    "performance": {},
+    "performance": {2: 1.4, 3: 1.1},
     "robustness": {},
     "limitations": {1: 1.1},
     "generic": {1: 1.2, 2: 1.1},
@@ -237,7 +237,7 @@ def get_section_boost_for_query(query: str, available_sections: List[str] | None
             if sec in base_weights:
                 base_weights[sec] = weight
     elif query_type == "performance":
-        for sec, weight in {"results": 2.4, "abstract": 1.6, "conclusion": 1.3}.items():
+        for sec, weight in {"results": 2.4, "abstract": 3.0, "conclusion": 1.3, "body": 0.75}.items():
             if sec in base_weights:
                 base_weights[sec] = weight
     elif query_type == "factor_definition":
@@ -249,7 +249,7 @@ def get_section_boost_for_query(query: str, available_sections: List[str] | None
             if sec in base_weights:
                 base_weights[sec] = weight
     elif query_type == "robustness":
-        for sec, weight in {"results": 1.9, "conclusion": 1.4, "body": 1.4}.items():
+        for sec, weight in {"results": 2.2, "conclusion": 2.8, "body": 1.0, "abstract": 0.2}.items():
             if sec in base_weights:
                 base_weights[sec] = weight
     elif query_type == "limitations":

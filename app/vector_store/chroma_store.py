@@ -4,7 +4,14 @@ CHROMA_PATH = "data/chroma_db"
 COLLECTION_NAME = "pdf_chunks"
 
 client = chromadb.PersistentClient(path=CHROMA_PATH)
-collection = client.get_or_create_collection(name=COLLECTION_NAME)
+collection = None
+
+
+def get_collection():
+    global collection
+    if collection is None:
+        collection = client.get_or_create_collection(name=COLLECTION_NAME)
+    return collection
 
 
 def store_chunks(chunks, embeddings):
@@ -24,7 +31,7 @@ def store_chunks(chunks, embeddings):
         }
         metadatas.append(meta)
 
-    collection.add(
+    get_collection().add(
         ids=ids,
         documents=documents,
         embeddings=embeddings,
@@ -33,7 +40,7 @@ def store_chunks(chunks, embeddings):
 
 
 def search_chunks(query_embedding: list[float], top_k: int = 5):
-    results = collection.query(
+    results = get_collection().query(
         query_embeddings=[query_embedding],
         n_results=top_k
     )
@@ -61,7 +68,7 @@ def search_chunks_with_section_boost(
         }
     
     # Get more results to allow for re-ranking
-    results = collection.query(
+    results = get_collection().query(
         query_embeddings=[query_embedding],
         n_results=top_k * 3  # Get 3x to allow filtering/reranking
     )
@@ -102,7 +109,7 @@ def search_chunks_with_section_boost(
 
 
 def get_collection_count():
-    return collection.count()
+    return get_collection().count()
 
 
 def reset_collection():
@@ -110,7 +117,7 @@ def reset_collection():
     global collection
     try:
         client.delete_collection(name=COLLECTION_NAME)
-    except:
+    except Exception:
         pass
     collection = client.get_or_create_collection(name=COLLECTION_NAME)
     return collection

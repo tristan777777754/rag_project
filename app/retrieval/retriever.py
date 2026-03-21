@@ -8,7 +8,7 @@ mostly global retrieval step.
 from typing import List, Dict, Any, Optional
 
 from app.embeddings.embedder import embed_query
-from app.vector_store.chroma_store import collection, search_chunks_with_section_boost
+from app.vector_store.chroma_store import get_collection, search_chunks_with_section_boost
 from app.retrieval.query_expansion import expand_query
 from app.retrieval.query_router import (
     classify_query,
@@ -29,7 +29,7 @@ def _normalize_section(section: Optional[str]) -> str:
 
 def _load_all_chunks() -> List[Dict[str, Any]]:
     """Load all chunk documents/metadata from ChromaDB in a BM25-friendly format."""
-    all_data = collection.get()
+    all_data = get_collection().get()
     chunks = []
 
     for doc, meta in zip(all_data.get("documents", []), all_data.get("metadatas", [])):

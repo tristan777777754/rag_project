@@ -6,8 +6,8 @@ from app.retrieval.retriever import retrieve_relevant_chunks, reset_retriever
 from app.llm.kimi_client import ask_kimi_with_context
 
 
-def ingest_pdf():
-    pages = load_pdf("data/raw/sample.pdf")
+def ingest_pdf(pdf_path: str = "data/raw/quant1.pdf"):
+    pages = load_pdf(pdf_path)
     chunks = split_pages_into_chunks_semantic(pages)
     filtered_chunks = filter_noisy_chunks(chunks)
 
@@ -19,7 +19,7 @@ def ingest_pdf():
     # Reset BM25 retriever so it will be rebuilt with new chunks
     reset_retriever()
 
-    print("PDF ingested successfully!")
+    print(f"PDF ingested successfully from {pdf_path}!")
     print("Total chunks stored:", get_collection_count())
 
 

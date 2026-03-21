@@ -115,7 +115,7 @@ if __name__ == "__main__":
     from app.ingestion.pdf_loader import load_pdf
     from app.processing.text_splitter import split_pages_into_chunks_semantic
 
-    pages = load_pdf("data/raw/sample.pdf")
+    pages = load_pdf("data/raw/quant1.pdf")
     chunks = split_pages_into_chunks_semantic(pages)
 
     save_universal_benchmark(chunks, "evaluation/benchmark/auto_generated.json")

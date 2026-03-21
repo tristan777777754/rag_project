@@ -30,7 +30,7 @@ def run_iteration_3():
     
     # Step 1: Ingest PDF
     print("[2] Ingesting PDF...")
-    pages = load_pdf("data/raw/sample.pdf")
+    pages = load_pdf("data/raw/quant1.pdf")
     print(f"    Loaded {len(pages)} pages")
     
     chunks = split_pages_into_chunks_semantic(pages, max_chunk_size=800, overlap_sentences=1)

@@ -178,7 +178,10 @@ rag_project/
 │   └── experiments/               # Iteration logs & results
 ├── data/
 │   └── raw/
-│       └── sample.pdf             # Input PDF
+│       ├── quant1.pdf
+│       ├── quant2.pdf
+│       ├── quant3.pdf
+│       └── sample2.pdf
 └── requirements.txt
 ```
 

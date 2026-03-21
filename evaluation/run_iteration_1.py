@@ -30,7 +30,7 @@ def run_iteration_1():
     
     # Step 1: Ingest PDF
     print("[2] Ingesting PDF with semantic chunking...")
-    pages = load_pdf("data/raw/sample.pdf")
+    pages = load_pdf("data/raw/quant1.pdf")
     print(f"    Loaded {len(pages)} pages")
     
     # Use new semantic chunking
